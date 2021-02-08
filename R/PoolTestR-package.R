@@ -1,0 +1,27 @@
+#' The 'PoolTestR' package.
+#'
+#' @description This is a package for working with presence/absence tests on pooled
+#'              or grouped samples. The primary application is for estimating prevalence of
+#'              a marker in a population based on the results of tests on pooled specimens.
+#'              This sampling method is often employed in surveillance of rare conditions in
+#'              humans or animals (e.g. livestock or xenomonitoring). The package was initially
+#'              conceived as an R-based alternative to the xenomonitoring software,
+#'              PoolScreen. However, it goes further, allowing for estimates of prevalence to
+#'              adjusted for hierarchy in sampling frames, and perform flexible (mixed effect)
+#'              regression analyses. The package is currently in early stages, however more
+#'              features are planned or in the works: e.g. adjustments for imperfect test
+#'              specificity/sensitivity, functions for helping with optimal experimental
+#'              design, and functions for spatial modelling.
+#' @docType package
+#' @name PoolTestR-package
+#' @aliases PoolTestR
+#' @useDynLib PoolTestR, .registration = TRUE
+#' @importFrom dplyr %>%
+#' @import methods
+#' @import Rcpp
+#' @import rstan
+#'
+#' @references
+#' Stan Development Team (2019). RStan: the R interface to Stan. R package version 2.19.2. https://mc-stan.org
+#'
+NULL
