@@ -12,9 +12,13 @@ PoolPrev(
   prior.alpha = NULL,
   prior.beta = NULL,
   prior.absent = 0,
-  alpha = 0.05,
+  level = 0.95,
   verbose = FALSE,
-  cores = NULL
+  cores = NULL,
+  iter = 2000,
+  warmup = iter/2,
+  chains = 4,
+  control = list(adapt_delta = 0.9)
 )
 }
 \arguments{
@@ -47,13 +51,21 @@ zero (prior.absent). Another popular uninformative choice is
 \code{prior.alpha = 1, prior.beta = 1, prior.absent = 0}, i.e. a uniform
 prior.}
 
-\item{alpha}{Defines the confidence level to be used for the confidence and
-credible intervals. Defaults to 0.05 (i.e. 95\% intervals)}
+\item{level}{Defines the confidence level to be used for the confidence and
+credible intervals. Defaults to 0.95 (i.e. 95\% intervals)}
 
 \item{verbose}{Logical indicating whether to print progress to screen.
 Defaults to false (no printing to screen).}
 
 \item{cores}{The number of CPU cores to be used. By default one core is used}
+
+\item{iter, warmup, chains}{MCMC options for passing onto the sampling
+routine. See \link[rstan]{stan} for details.}
+
+\item{control}{A named list of parameters to control the sampler's behaviour.
+Defaults to default values as defined in \link[rstan]{stan}, except for
+\code{adapt_delta} which is set to the more conservative value of 0.9. See
+\link[rstan]{stan} for details.}
 }
 \value{
 A \code{data.frame} with columns: \itemize{ \item{\code{PrevMLE} (the
@@ -70,22 +82,4 @@ A \code{data.frame} with columns: \itemize{ \item{\code{PrevMLE} (the
 }
 \description{
 Estimation of prevalence based on presence/absence tests on pooled samples
-}
-\examples{
-#Try out on a synthetic dataset consisting of pools (sizes 1, 5, or 10) taken
-#from 4 different regions and 3 different years. Within eaach region specimens
-#are collected at 4 different villages, and within each village specimens are
-#collected at 8 different sites.
-
-\donttest{
-  #Prevalence across the whole (synthetic) dataset
-  PoolPrev(SimpleExampleData, Result, NumInPool)
-  #Prevalence in each Region
-  PoolPrev(SimpleExampleData, Result, NumInPool, Region)
-  #Prevalence for each year
-  PoolPrev(SimpleExampleData, Result, NumInPool, Year)
-  #Prevalence for each combination of region and year
-  PoolPrev(SimpleExampleData, Result, NumInPool, Region, Year)
-}
-
 }

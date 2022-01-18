@@ -25,43 +25,52 @@
 #'   of increasing granularity. For manual control you can set to NA for
 #'   population effects only, or a one-sided formula specifying the form of the
 #'   random effects to include in estimates, or a list of such objects.
+#' @param robust Currently only relevant for brmsfit objects (returned by
+#'   PoolRegBayes). If \code{FALSE} (default) the point estimate of prevalence
+#'   is the mean over the posterior. If \code{TRUE}, the median over the
+#'   posterior is used instead.
+#' @param level Defines the confidence level to be used for the confidence and
+#'   credible intervals. Defaults to 0.95 (i.e. 95\% intervals).
 #' @return A \code{list} with at least one field \code{PopulationEffects} and an
 #'   additional field for every random/group effect variable. The field
 #'   \code{PopulationEffects} contains a \code{data.frame} with the prevalence
 #'   estimated based only the fixed/population effects. When the intercept is
-#'   the only fixed/population effect, this is just the population mean (possibly
-#'   adjusted for random/group effects). When there are group effects terms,
-#'   \code{getPrevalence} attempts to order these with respect to 'granularity'
-#'   and extract the prevalence estimates for these random effects; e.g. if the
-#'   random/group effects included are there to account for a hierarchical
-#'   sampling frame with levels 'Village' and 'Site' with a formula like
-#'   \code{Result ~ Cov1 + Cov2 + (1|Village/Site)}, then getPrevalence will be
-#'   a list of three data frames: estimates for every combination of covariates,
-#'   estimates for every combination of covariates and village, and estimates
-#'   for every combination of covariates, village, and site.
+#'   the only fixed/population effect, this is just the population mean
+#'   (possibly adjusted for random/group effects). When there are group effects
+#'   terms, \code{getPrevalence} attempts to order these with respect to
+#'   'granularity' and extract the prevalence estimates for these random
+#'   effects; e.g. if the random/group effects included are there to account for
+#'   a hierarchical sampling frame with levels 'Village' and 'Site' with a
+#'   formula like \code{Result ~ Cov1 + Cov2 + (1|Village/Site)}, then
+#'   getPrevalence will be a list of three data frames: estimates for every
+#'   combination of covariates, estimates for every combination of covariates
+#'   and village, and estimates for every combination of covariates, village,
+#'   and site.
 #'
-#' @seealso [PoolReg()] and [PoolRegBayes()]
+#' @seealso
+#'   \code{\link{PoolReg}},
+#'    \code{\link{PoolRegBayes}}
 #' @example examples/LogisticRegression.R
 
-getPrevalence <- function(model, newdata = NULL, re.form = NULL){
+getPrevalence <- function(model, newdata = NULL, re.form = NULL, robust = FALSE, level = 0.95){
   out <- switch(class(model)[1],
-                brmsfit = getPrevalence.brmsfit(model, newdata, re.form),
-                glm = getPrevalence.glm(model, newdata),
+                brmsfit = getPrevalence.brmsfit(model, newdata, re.form, robust, level),
+                glm = getPrevalence.glm(model, newdata, level),
                 glmerMod = getPrevalence.glmerMod(model, newdata, re.form),
                 stop('The provided model must be the output of either PoolReg or PoolRegBayes'))
   out
 }
 
-getPrevalence.glm <- function(model, newdata = NULL){
+getPrevalence.glm <- function(model, newdata = NULL, level = 0.95){
   if(is.null(newdata)){
     newdata <- model$data
   }
   PoolSizeName <- attr(model,'PoolSizeName')
   invlink <- switch(attr(model,'link'),
                     logit = stats::plogis,
-                    cloglog = function(x){1-exp(-exp(x))})
+                    cloglog = function(x){-expm1(-exp(x))})
 
-  s <- stats::qt(0.025, df = stats::df.residual(model), lower.tail = FALSE)
+  s <- stats::qt((1-level)/2, df = stats::df.residual(model), lower.tail = FALSE)
 
   PopTerms <- attr(stats::terms(model$formula),"term.labels")
   PredData <- newdata[,PopTerms,drop = FALSE] %>% unique
@@ -91,7 +100,7 @@ getPrevalence.glmerMod <- function(model, newdata = NULL, re.form = NULL){
 
   invlink <- switch(attr(model,"link"),
                     logit = stats::plogis,
-                    cloglog = function(x){1-exp(-exp(x))})
+                    cloglog = function(x){-expm1(-exp(x))})
 
   formula <- attr(model,'call')$formula
   PoolSizeName <- attr(model,'PoolSizeName')
@@ -119,7 +128,7 @@ getPrevalence.glmerMod <- function(model, newdata = NULL, re.form = NULL){
          stop('re.form must be a list of random effect formulas, NA (for no random effect terms)')
   )
 
-  AllTerms <- setdiff(all.vars(formula), as.character(formula[[2]]))
+  AllTerms <- setdiff(all.vars(formula), all.vars(formula[[2]]))
   PopTerms <- setdiff(AllTerms,GroupVarNames)
 
   predlist <- list()
@@ -158,26 +167,35 @@ getPrevalence.glmerMod <- function(model, newdata = NULL, re.form = NULL){
   return(predlist)
 }
 
-getPrevalence.brmsfit <- function(model, newdata = NULL, re.form = NULL){
+getPrevalence.brmsfit <- function(model, newdata = NULL, re.form = NULL, robust = FALSE, level = 0.95){
   if(is.null(newdata)){
     newdata <- model$data
   }
-  formula <- model$formula$pforms$eta
+
+  formula <- model$formula$formula
+
   PoolSizeName <- model$PoolSizeName
 
   #Get the the random/group effect terms names
   GroupVarNames <- getGroupVarNames(formula)
   #Order group terms in order of the number of unique values (i.e. coarsest first)
   NGroupVars <- length(GroupVarNames)
-  if(NGroupVars >0){
-    GroupVarNames <- orderByGranularity(newdata,GroupVarNames)
-  }
+
 
   #set up default re.form list - and if an NA or a single formula wrap in a list
   switch(class(re.form),
          NULL = {
+           if(!all(GroupVarNames %in% colnames(newdata))){
+             stop('Cannot calculate random effects for variables ',
+                  paste(setdiff(GroupVarNames, colnames(newdata)),collapse = ', '),
+                  ' as these have not been provided in `newdata`')
+           }
+
+           if(NGroupVars >0){
+             GroupVarNames <- orderByGranularity(newdata,GroupVarNames)
+           }
+
            if(isNested(newdata,GroupVarNames)){
-             GroupTerms <- lme4::findbars(formula)
              re.form <- c(list(PopulationEffects = NA),
                           orderedGroupTerms(formula,GroupVarNames))
            }else{
@@ -190,7 +208,7 @@ getPrevalence.brmsfit <- function(model, newdata = NULL, re.form = NULL){
          stop('re.form must be a list of random effect formulas, NA (for no random effect terms)')
   )
 
-  AllTerms <- setdiff(all.vars(formula), as.character(formula[[2]]))
+  AllTerms <- setdiff(all.vars(formula), all.vars(formula[[2]]))
   PopTerms <- setdiff(AllTerms,GroupVarNames)
 
   predlist <- list()
@@ -206,21 +224,22 @@ getPrevalence.brmsfit <- function(model, newdata = NULL, re.form = NULL){
         stop('re.form must be a list of random effect formulas or NA (for no random effect terms)')
       }
     }
-
     #We just want to predict for unique combinations of the relevant variables
     PredDataSub <-  newdata[,unique(c(PopTerms,SubGroupVarNames)),drop = FALSE] %>%
-      dplyr::mutate(DummyVar = 1) %>% #guarantees that the PredDataSub is non-empty
+      dplyr::mutate(.DummyVar = 1) %>% #guarantees that the PredDataSub is non-empty
       unique
     rownames(PredDataSub) <- NULL
     PredDataSub[,PoolSizeName] <- 1
     Prev <- stats::fitted(model,
                          scale = 'response',
                          re_formula = re,
-                         newdata = PredDataSub) %>%
+                         newdata = PredDataSub,
+                         robust = robust,
+                         probs = c((1-level)/2, (1+level)/2)) %>%
       as.data.frame %>%
       dplyr::select(-dplyr::any_of(c("Est.Error"))) %>%
       stats::setNames(c("Estimate", "CrILow", "CrIHigh"))
-    predlist[[n]] <- cbind(PredDataSub[,!names(PredDataSub) %in% c("DummyVar", PoolSizeName), drop = FALSE],
+    predlist[[n]] <- cbind(PredDataSub[,!names(PredDataSub) %in% c(".DummyVar", PoolSizeName), drop = FALSE],
                            Prev)
   }
 

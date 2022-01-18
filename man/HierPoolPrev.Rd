@@ -14,9 +14,14 @@ HierPoolPrev(
   prior.alpha = 0.5,
   prior.beta = 0.5,
   prior.absent = 0,
-  alpha = 0.05,
+  hyper.prior.sd = 2,
+  level = 0.95,
   verbose = FALSE,
-  cores = NULL
+  cores = NULL,
+  iter = 2000,
+  warmup = iter/2,
+  chains = 4,
+  control = list(adapt_delta = 0.9)
 )
 }
 \arguments{
@@ -53,19 +58,34 @@ these columns}
 
 \item{prior.alpha, prior.beta, prior.absent}{The prior on the prevalence in
 each group takes the form of beta distribution (with parameters alpha and
-beta). The default is \code{prior.alpha = prior.beta = 1/2} i.e. the
-uninformative "Jeffrey's" prior. Another popular uninformative choice is
-\code{prior.alpha = prior.beta = 1}, i.e. a uniform prior.
-\code{prior.absent} is included for consistency with \code{PoolPrev}, but
-is currently ignored}
+beta). The default is \code{prior.alpha = prior.beta = 1/2}. Another popular
+uninformative choice is \code{prior.alpha = prior.beta = 1}, i.e. a uniform
+prior. \code{prior.absent} is included for consistency with \code{PoolPrev},
+but is currently ignored}
 
-\item{alpha}{The confidence level to be used for the confidence and credible
-intervals. Defaults to 0.5\% (i.e. 95\% intervals)}
+\item{hyper.prior.sd}{Scale for the half-Cauchy hyper-prior for standard deviations
+of random/group effect terms. Defaults to 2, which is weakly informative since
+it implies that 50% of random/group effects terms will be within a order of
+magnitude of each other, and 90% of random/group effects will be within four
+orders of magnitude of each other. Decrease if you think group differences are
+are smaller than this, and increase if you think group differences may often
+reasonably be larger than this}
+
+\item{level}{The confidence level to be used for the confidence and credible
+intervals. Defaults to 0.95 (i.e. 95\% intervals)}
 
 \item{verbose}{Logical indicating whether to print progress to screen.
 Defaults to false (no printing to screen)}
 
 \item{cores}{The number of CPU cores to be used. By default one core is used}
+
+\item{iter, warmup, chains}{MCMC options for passing onto the sampling
+routine. See \link[rstan]{stan} for details.}
+
+\item{control}{A named list of parameters to control the sampler's behaviour.
+Defaults to default values as defined in \link[rstan]{stan}, except for
+\code{adapt_delta} which is set to the more conservative value of 0.9. See
+\link[rstan]{stan} for details.}
 }
 \value{
 A \code{data.frame} with columns: \itemize{ \item{\code{PrevMLE} (the
@@ -73,10 +93,10 @@ A \code{data.frame} with columns: \itemize{ \item{\code{PrevMLE} (the
   \code{CIHigh} (Lower and Upper Confidence intervals using the Likelihood
   Ratio method)} \item{\code{Bayesian Posterior Expectation}}
   \item{\code{CrILow} and \code{CrIHigh}} \item{\code{Number of Pools}}
-  \item{\code{Number Positive}} } If grouping variables are provided in
+  \item{\code{Number Positive}} } If stratifying variables are provided in
   \code{...} there will be an additional column for each stratifying variable.
   When there are no stratifying variables (supplied in \code{...}) then the
-  dataframe has only one row with the prevalence estimates for the whole
+  output has only one row with the prevalence estimates for the whole
   dataset. When stratifying variables are supplied, then there is a separate row
   for each group.
 }
@@ -99,4 +119,8 @@ a hierarchical sampling frame
 }
 
 
+}
+\seealso{
+\code{\link{PoolPrev}},
+     \code{\link{getPrevalence}}
 }
