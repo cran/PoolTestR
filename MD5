@@ -1,10 +1,10 @@
-8c50b9bc71539bbe97ac44b79edd1faf *DESCRIPTION
+4ad2637a05b84048c8921dbce0b003b2 *DESCRIPTION
 09d18f4062934359e4d52b78680dbcd7 *NAMESPACE
-fc96aa20cda11650155636e646b09098 *NEWS.md
+5e761c9317972cf4e46b990efe5b7a0d *NEWS.md
 b248697a897db7b6c9917ed9cb4f3329 *R/ExampleData.R
-77619555b90c2d8c8ef264b75bbdda01 *R/HierPoolPrev.R
+047c17806b036b301fbde4365f6a8a4b *R/HierPoolPrev.R
 3daaac2936dc2e042492d8d3b3558c01 *R/PoolLink.R
-4d9a62fc7418129d8a5c36ff41a53a85 *R/PoolPrev.R
+362c190944e064d21729b2b78c52c20c *R/PoolPrev.R
 04388cb6b239205f7a1f88640c107bb1 *R/PoolReg.R
 d0bacdab34cbe688b86eb0c115089257 *R/PoolRegBayes.R
 12c7867c2cedc7211dedb064d1ce4bd2 *R/PoolTestR-package.R
@@ -12,7 +12,7 @@ d0bacdab34cbe688b86eb0c115089257 *R/PoolRegBayes.R
 9fc932c00177710a52b95eef7fc38ce5 *R/TruePrev.R
 c15b961836442621b42fbec603c7dfb5 *R/getPrevalence.R
 a0aef33b067a9ca5874d241450dcf6f2 *R/stanmodels.R
-06832945e74c4e634ae4a15fb5ae3f68 *README.md
+6abb82402957e2eaffdeafbfe29346c6 *README.md
 c2a46d0161f06ca5c897fb3352cb4269 *configure
 6bea7bdbd44ffa386677bfdec2d1984b *configure.win
 1c3cfaf1f32ed2434b9ee798c4f545c7 *data/ExampleData.rda
@@ -24,9 +24,9 @@ d2acc5b2a3d78b699faa7e849e900a98 *inst/CITATION
 2d19b23719b996ddfc42054a3349eff0 *inst/stan/HierBayesianPoolScreen.stan
 11cb5156c23750be673485fac2f1c014 *inst/stan/include/license.stan
 0360d0d484b83b34ec9f90ed26f41ecd *man/ExampleData.Rd
-d74ba6b06edbddc423ab48492fd9248b *man/HierPoolPrev.Rd
+1dbc3e0095201ff1906af2bc3fbc7688 *man/HierPoolPrev.Rd
 2f951f74067004d0f5116db863afe353 *man/PoolLink.Rd
-60440d4967264806a7d79de417e3e6a4 *man/PoolPrev.Rd
+6ecc0f62714e72bae2aa275445261107 *man/PoolPrev.Rd
 ca26e5e8ccde136c72908c11fc023479 *man/PoolReg.Rd
 632e816dffc521af279e6fe126154b22 *man/PoolRegBayes.Rd
 1e8ae5ab2727aa71937998b64f6ef815 *man/PoolTestR-package.Rd
