@@ -1,3 +1,6 @@
+#' @keywords internal
+"_PACKAGE"
+
 #' The 'PoolTestR' package.
 #'
 #' @description This is a package for working with presence/absence tests on pooled
@@ -12,14 +15,14 @@
 #'              features are planned or in the works: e.g. adjustments for imperfect test
 #'              specificity/sensitivity, functions for helping with optimal experimental
 #'              design, and functions for spatial modelling.
-#' @docType package
 #' @name PoolTestR-package
 #' @aliases PoolTestR
 #' @useDynLib PoolTestR, .registration = TRUE
-#' @importFrom dplyr %>%
+#' @import dplyr
 #' @import methods
 #' @import Rcpp
 #' @import rstan
+#' @importFrom rlang .data
 #'
 #' @references
 #'

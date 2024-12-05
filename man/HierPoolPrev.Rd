@@ -3,7 +3,9 @@
 \name{HierPoolPrev}
 \alias{HierPoolPrev}
 \title{Estimation of prevalence based on presence/absence tests on pooled samples in
-a hierarchical sampling frame}
+a hierarchical sampling frame. Uses an intercept-only random effects model to
+model prevalence at population level. See PoolReg and PoolRegBayes for full
+mixed-effect modelling}
 \usage{
 HierPoolPrev(
   data,
@@ -11,17 +13,16 @@ HierPoolPrev(
   poolSize,
   hierarchy,
   ...,
-  prior.alpha = 0.5,
-  prior.beta = 0.5,
-  prior.absent = 0,
-  hyper.prior.sd = 2,
+  prior = NULL,
+  robust = TRUE,
   level = 0.95,
   verbose = FALSE,
   cores = NULL,
   iter = 2000,
   warmup = iter/2,
   chains = 4,
-  control = list(adapt_delta = 0.9)
+  control = list(adapt_delta = 0.9),
+  all.negative.pools = "zero"
 )
 }
 \arguments{
@@ -51,25 +52,18 @@ combined with the site number to create unique identifiers for each site
 (e.g. A-1, A-2... for sites in village A and B-1, B-2... for the sites in
 village B etc.)}
 
-\item{...}{Optional name(s) of columns with variables to stratify the data by.
-If omitted the complete dataset is used to estimate a single prevalence.
-If included prevalence is estimated separately for each group defined by
-these columns}
+\item{...}{Optional name(s) of columns with variables to stratify the data
+by. If omitted the complete dataset is used to estimate a single
+prevalence. If included prevalence is estimated separately for each group
+defined by these columns}
 
-\item{prior.alpha, prior.beta, prior.absent}{The prior on the prevalence in
-each group takes the form of beta distribution (with parameters alpha and
-beta). The default is \code{prior.alpha = prior.beta = 1/2}. Another popular
-uninformative choice is \code{prior.alpha = prior.beta = 1}, i.e. a uniform
-prior. \code{prior.absent} is included for consistency with \code{PoolPrev},
-but is currently ignored}
+\item{prior}{List of parameters specifying the parameters for the the priors
+on the population intercept and standard deviations of group-effect terms.
+See details.}
 
-\item{hyper.prior.sd}{Scale for the half-Cauchy hyper-prior for standard deviations
-of random/group effect terms. Defaults to 2, which is weakly informative since
-it implies that 50\% of random/group effects terms will be within a order of
-magnitude of each other, and 90\% of random/group effects will be within four
-orders of magnitude of each other. Decrease if you think group differences are
-are smaller than this, and increase if you think group differences may often
-reasonably be larger than this}
+\item{robust}{Logical. If \code{TRUE} (default), the point estimate of 
+prevalence is the posterior median. If \code{FALSE}, the posterior mean is
+used instead.}
 
 \item{level}{The confidence level to be used for the confidence and credible
 intervals. Defaults to 0.95 (i.e. 95\% intervals)}
@@ -79,48 +73,98 @@ Defaults to false (no printing to screen)}
 
 \item{cores}{The number of CPU cores to be used. By default one core is used}
 
-\item{iter, warmup, chains}{MCMC options for passing onto the sampling
-routine. See \link[rstan]{stan} for details.}
+\item{iter, warmup, chains}{MCMC options for passing onto the sampling routine.
+See \link[rstan]{stan} for details.}
 
 \item{control}{A named list of parameters to control the sampler's behaviour.
 Defaults to default values as defined in \link[rstan]{stan}, except for
 \code{adapt_delta} which is set to the more conservative value of 0.9. See
 \link[rstan]{stan} for details.}
+
+\item{all.negative.pools}{The kind of point estimate and interval to use when
+all pools are negative (Bayesian estimates only). If \code{'zero'} 
+(default), uses 0 as the point estimate and lower bound for the interval 
+and \code{level} posterior quantile the upper bound of the interval. If 
+\code{'consistent'}, result is the same as for the case where at least one 
+pool is positive.}
 }
 \value{
-A \code{data.frame} with columns:
-  \itemize{\item{\code{PrevBayes} the (Bayesian) posterior expectation}
+An object of class \code{HierPoolPrevOutput}, which inherits from 
+class \code{tbl}. 
+The output includes the following columns:
+  \itemize{\item{\code{PrevBayes} -- the (Bayesian) posterior expectation}
            \item{\code{CrILow} and \code{CrIHigh} -- lower and upper bounds
                  for credible intervals}
            \item{\code{NumberOfPools} -- number of pools}
-           \item{\code{NumberPositive} -- the number of positive pools} }
-  If grouping variables are provided in \code{...} there will be an additional
-  column for each grouping variable. When there are no grouping variables
-  (supplied in \code{...}) then the output has only one row with the
-  prevalence estimates for the whole dataset. When grouping variables are
+           \item{\code{NumberPositive} -- the number of positive pools}
+           \item{\code{ICC} -- the estimated intra-cluster correlation
+                 coefficient}
+           \item{\code{ICC_CrILow} and \code{ICC_CrIHigh} -- lower and upper
+                 bounds for credible intervals of the estimated ICC} }
+
+  The three ICC columns (\code{ICC}, \code{ICC_CrILow} and
+  \code{ICC_CrIHigh}) are matrix columns. These contain one column for each
+  variable included in the \code{hierarchy}. E.g., if the input hierarchy is
+  \code{c("Village", "Site")}, each of the three ICC matrix columns will
+  contain one column with results for \code{Village} and one column with
+  results for \code{Site}.
+
+  If grouping variables are provided in \code{...} there will be an
+  additional column for each grouping variable. When there are no grouping
+  variables (supplied in \code{...}) then the output has only one row with
+  the prevalence estimates for the whole dataset. When grouping variables are
   supplied, then there is a separate row for each group.
+
+  The custom print method summarises the output data frame by representing
+  output variables with credible intervals (i.e., \code{PrevBayes},
+  \code{ICC}) as a single column in the form \code{"X (CrILow - CrIHigh)"}
+  where \code{X} is the variable, \code{CrILow} is the lower credible
+  interval and \code{CrIHigh} is the upper credible interval. In the print
+  method,  prevalence \code{PrevBayes} is represented as a percentage (i.e.,
+  per 100 units).
 }
 \description{
 Estimation of prevalence based on presence/absence tests on pooled samples in
-a hierarchical sampling frame
+a hierarchical sampling frame. Uses an intercept-only random effects model to
+model prevalence at population level. See PoolReg and PoolRegBayes for full
+mixed-effect modelling
+}
+\details{
+When using the default value of the \code{prior} argument (NULL), the model
+uses the following prior:
+  \code{list(intercept = list(nu = 3, mu = 0, sigma = 4.0),
+             group_sd  = list(nu = 3, mu = 0, sigma = 2.5),
+             individual_sd = FALSE)}
+This models the prior of the linear scale intercept as t-distributed with
+parameters in `intercept` and the standard deviation of the group-level
+effects as truncated (non-negative) t-distribution. `individual_sd = FALSE`
+means that this prior is for the root-sum-square of group-effect standard
+deviations for models with multiple grouping levels. The default implies a
+prior on population prevalence that is approximately distributed as
+beta(0.5,0.5). To set custom priors, use the same nested list format. Any
+omitted parameters will be replaced with the default values and additional
+parameters ignored silently. For example, to change the parameters to be
+equal to the defaults for intercept-only random-effect model in PoolRegBayes
+you can use: \code{list(individual_sd = TRUE)}, which puts a prior on each
+the standard deviations of each of group-level effects separately, but
+doesn't change the priors used.
 }
 \examples{
 # Calculate prevalence for a synthetic dataset consisting of pools (sizes 1, 5,
-# or 10) taken from 4 different regions and 3 different years. Within each
-# region specimens are collected at 4 different villages, and within each
-# village specimens are collected at 8 different sites.
+# or 10) taken from 3 different years. Specimens are collected at 16 different
+# villages, and within each village specimens are collected at 8 different
+# sites.
 
 \donttest{
-  #Prevalence for each combination of region and year:
-  #ignoring hierarchical sampling frame within each region
-  PoolPrev(SimpleExampleData, Result, NumInPool, Region, Year)
+  #Prevalence for each year:
+  #ignoring hierarchical sampling frame be:
+  PoolPrev(SimpleExampleData, Result, NumInPool, Year)
   #accounting hierarchical sampling frame within each region
-  HierPoolPrev(SimpleExampleData, Result, NumInPool, c("Village","Site"), Region, Year)
+  HierPoolPrev(SimpleExampleData, Result, NumInPool, c("Village","Site"), Year)
 }
 
 
 }
 \seealso{
-\code{\link{PoolPrev}},
-     \code{\link{getPrevalence}}
+\code{\link{PoolPrev}}, \code{\link{getPrevalence}}
 }

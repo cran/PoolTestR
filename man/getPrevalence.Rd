@@ -2,42 +2,60 @@
 % Please edit documentation in R/getPrevalence.R
 \name{getPrevalence}
 \alias{getPrevalence}
+\alias{getPrevalence.glm}
+\alias{getPrevalence.glmerMod}
+\alias{getPrevalence.brmsfit}
 \title{Predicting Prevalence from a Mixed or Fixed Effect Logistic Regression with
 Presence/Absence Tests on Pooled Samples}
 \usage{
-getPrevalence(
+getPrevalence(model, ...)
+
+\method{getPrevalence}{glm}(model, newdata = NULL, level = 0.95, ...)
+
+\method{getPrevalence}{glmerMod}(
   model,
   newdata = NULL,
   re.form = NULL,
-  robust = FALSE,
-  level = 0.95
+  all.negative.pools = "zero",
+  ...
+)
+
+\method{getPrevalence}{brmsfit}(
+  model,
+  newdata = NULL,
+  re.form = NULL,
+  robust = TRUE,
+  level = 0.95,
+  all.negative.pools = "zero",
+  ...
 )
 }
 \arguments{
 \item{model}{An object returned by [PoolReg()] or [PoolRegBayes()]}
 
+\item{...}{Arguments passed to methods for each class}
+
 \item{newdata}{The data for which prevalence needs to be estimated/predicted.
 If not provided, defaults to using the data used to train the model (i.e.
 returns the fitted values of the prevalence)}
 
-\item{re.form}{A description of which random effects to include in the
-prediction. If omitted, getPrevalence automatically tests to see if there
-are any random effect terms. If not, it just returns the estimates based on
-population effects. If there are random effects, it tests to see if the
-random effect variables form a nested hierarchical structure. If so, in
-addition to the estimates based on population effects only, it will
-estimate at different levels of the nested hierarchical structure in order
-of increasing granularity. For manual control you can set to NA for
-population effects only, or a one-sided formula specifying the form of the
-random effects to include in estimates, or a list of such objects.}
-
-\item{robust}{Currently only relevant for brmsfit objects (returned by
-PoolRegBayes). If \code{FALSE} (default) the point estimate of prevalence
-is the mean over the posterior. If \code{TRUE}, the median over the
-posterior is used instead.}
-
 \item{level}{Defines the confidence level to be used for the confidence and
 credible intervals. Defaults to 0.95 (i.e. 95\% intervals).}
+
+\item{re.form}{A description of which random effects to include in the
+prediction. If omitted, an attempt is made to infer from model and data
+structure.}
+
+\item{all.negative.pools}{The kind of point estimate and interval to use when
+all pools are negative. Typically ignored unless newdata is NULL. If 
+\code{'zero'} (default), uses 0 as the point estimate and lower bound for 
+the interval and \code{level} posterior quantile the upper bound of the 
+interval. If \code{'consistent'}, result is the same as for the case where 
+at least one pool is positive.}
+
+\item{robust}{Logical. Option when model class is \code{brmsfit}. If 
+\code{TRUE} (default) the point estimate of prevalence is the posterior 
+median. If \code{FALSE}, the the posterior mean is used instead.}
 }
 \value{
 A \code{list} with at least one field \code{PopulationEffects} and an
@@ -50,7 +68,7 @@ A \code{list} with at least one field \code{PopulationEffects} and an
   'granularity' and extract the prevalence estimates for these random
   effects; e.g. if the random/group effects included are there to account for
   a hierarchical sampling frame with levels 'Village' and 'Site' with a
-  formula like \code{Result ~ Cov1 + Cov2 + (1|Village/Site)}, then
+  formula like \code{Result ~ Cov1 + Cov2 + (1|Village) + (1|Site)}, then
   getPrevalence will be a list of three data frames: estimates for every
   combination of covariates, estimates for every combination of covariates
   and village, and estimates for every combination of covariates, village,
@@ -64,7 +82,26 @@ or link scale we do not use either of these generic functions. Further, when
 the model accounts for the hierarchical structure of the sampling frame (e.g.
 Region/Village/Site), it is common to want to know the predicted values at
 each level of sampling (e.g. Prevalence at each region, village or site) so
-these are calculated automatically.
+these are calculated automatically. Also to calculate population-level
+prevalence from a mixed model, random/group effects need to marginalised out
+to avoid biased estimates. This is performed automatically.
+}
+\details{
+If \code{re.form} is omitted (probably the most common use case)
+\code{getPrevalence} will test to see if there are any random effect terms in
+the model formula extracted from the \code{model} object. If not, it just
+returns the estimates based on population effects. If there are random
+effects, it tests to see if the random effect variables form a nested
+hierarchical structure in the data provided. If so, in addition to the
+estimates based on population effects only, it will estimate at different
+levels of the nested hierarchical structure in order of increasing
+granularity. For manual control you can set to NA for population effects
+only, or a one-sided formula specifying the form of the random effects to
+include in estimates, or a list of such objects. Any random effects omitted
+will be marginalised out. For automatically detected nested hierarchical
+structures this means that higher level estimates marginalise over
+lower-level random effect; in particular, population level estimates will
+marginalise over all random effects.
 }
 \examples{
 # Perform logistic-type regression modelling for a synthetic dataset consisting
@@ -81,14 +118,10 @@ Mod <- PoolReg(Result ~ Region + Year,
 summary(Mod)
 
 #accounting hierarchical sampling frame within each region
-HierMod <- PoolReg(Result ~ Region + Year + (1|Village/Site),
+HierMod <- PoolReg(Result ~ Region + Year + (1|Village) + (1|Site),
                    data = SimpleExampleData,
                    poolSize = NumInPool)
 summary(HierMod)
-#Extract fitted prevalence for each combination of region and year and then at
-#each level of the hierarchical sampling frame (i.e. for each village in each
-#region and  each site in each village)
-getPrevalence(HierMod)
 
 
 ### Models in a Bayesian framework with default (non-informative) priors
@@ -98,37 +131,37 @@ getPrevalence(HierMod)
                            data = SimpleExampleData,
                            poolSize = NumInPool)
   summary(BayesMod)
-  getPrevalence(BayesMod) #Extract fitted prevalence for each combination of region and year
 
-  #accounting hierarchical sampling frame within each region
-  BayesHierMod <- PoolRegBayes(Result ~ Region + Year + (1|Village/Site),
-                               data = SimpleExampleData,
-                               poolSize = NumInPool)
-  summary(BayesHierMod)
-  getPrevalence(BayesHierMod)
+  #we could also account for hierarchical sampling frame within each region but
+  #note that this is more complex and slower)
+
+  # BayesHierMod <- PoolRegBayes(Result ~ Region + Year + (1|Village) + (1|Site),
+  #                              data = SimpleExampleData,
+  #                              poolSize = NumInPool)
 }
 
 ### Calculate adjusted estimates of prevalence
 # We use the same function for all four models, but the outputs are slightly different
 
-# Extract fitted prevalence for each combination of region and year
-getPrevalence(Mod)
+#For models without hierarchical sampling structure there is an estimate of
+#prevalence for every combination of population (fixed) effects: e.g. Region and
+#Year
+getPrevalence(Mod) #Frequentist model
 \donttest{
-  getPrevalence(BayesMod)
+  getPrevalence(BayesMod) #Bayesian model
 }
 
-#Extract fitted prevalence for each combination of region and year and then at
-#each level of the hierarchical sampling frame (i.e. for each village in each
-#region and  each site in each village)
+#For models without hierarchical sampling structure, there is a prevalence
+#estimate for each combination of region and year and then at each level of the
+#hierarchical sampling frame (i.e. for each village in each region and each site
+#in each village)
 getPrevalence(HierMod)
-\donttest{
-  getPrevalence(BayesHierMod)
-}
 
-# You can also use getPrevalence to predict at prevalence for other values of
-# the covariates (e.g. predict prevalence in year 4)
+# You can also use getPrevalence to predict prevalence for other values of the
+# covariates (e.g. predict prevalence in year 4 based on linear trend on the
+# logit scale)
 
-#Making a data frame containing data make predict on
+#Making a data frame containing data make predictions on
 DataFuture <- unique(data.frame(Region = SimpleExampleData$Region,
                                 Village = SimpleExampleData$Village,
                                 Site = SimpleExampleData$Site,
@@ -136,12 +169,7 @@ DataFuture <- unique(data.frame(Region = SimpleExampleData$Region,
 
 getPrevalence(Mod, newdata = DataFuture)
 getPrevalence(HierMod, newdata = DataFuture)
-\donttest{
-  getPrevalence(BayesMod, newdata = DataFuture)
-  getPrevalence(BayesHierMod, newdata = DataFuture)
-}
 }
 \seealso{
-\code{\link{PoolReg}},
-   \code{\link{PoolRegBayes}}
+\code{\link{PoolReg}}, \code{\link{PoolRegBayes}}
 }
